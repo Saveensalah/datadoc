@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* ── CSS custom properties ─────────────────────────────────────────────── */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -12,15 +13,91 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ── Dark mode class-based toggle ────────────────────────────────────────
+   Tailwind's `dark:` utilities need the "dark" class on <html>.
+   We manage this in JavaScript (useDarkMode hook in page.tsx).
+   The media query below provides a sensible default on first load
+   before JS has run, but the JS preference always wins.
+──────────────────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
+  :root:not(.dark):not(.light) {
+    --background: #13151f;
     --foreground: #ededed;
   }
+}
+
+.dark {
+  --background: #13151f;
+  --foreground: #ededed;
+}
+
+/* ── Base styles ─────────────────────────────────────────────────────── */
+html {
+  /* Prevent flash of unstyled scroll-bar on Windows */
+  scrollbar-gutter: stable;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans, system-ui, -apple-system, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Monospace font for the SQL editor ───────────────────────────────── */
+.font-mono,
+code,
+pre,
+kbd,
+textarea[aria-label="SQL editor"] {
+  font-family: var(--font-geist-mono, "Fira Code", "Cascadia Code", Consolas, "Courier New", monospace);
+}
+
+/* ── Scrollbar styling — subtle, matches both themes ─────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* ── Focus visible ring — global consistency ─────────────────────────── */
+:focus-visible {
+  outline: 2px solid #ff174f;
+  outline-offset: 2px;
+}
+
+/* Remove default outline; we use focus-visible above */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Prevent textarea from showing a native blue border in WebKit ────── */
+textarea {
+  border: none;
+}
+
+textarea:focus {
+  outline: none;
+  box-shadow: none;
 }

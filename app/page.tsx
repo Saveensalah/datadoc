@@ -1,69 +1,171 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import Sidebar from "@/components/layout/Sidebar";
+import Header from "@/components/layout/Header";
+import EditorToolbar from "@/components/sql/EditorToolbar";
+import SqlEditor from "@/components/sql/SqlEditor";
+import QueryResult from "@/components/sql/QueryResult";
+import type { NavPage } from "@/types/query";
+import type { QueryExecution } from "@/types/query";
+import { executeQuery } from "@/services/queryService";
+
+// ── Placeholder pages ──────────────────────────────────────────────────────
+
+function PlaceholderPage({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center py-24 text-center px-6">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="3" />
+          <path d="M3 9h18M9 3v18" />
+        </svg>
+      </div>
+      <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{title}</h2>
+      <p className="mt-1.5 max-w-xs text-sm text-gray-500 dark:text-gray-400">{description}</p>
+      <span className="mt-4 inline-flex items-center rounded-full border border-dashed border-gray-200 dark:border-gray-700 px-3 py-1 text-xs text-gray-400 dark:text-gray-500">
+        Coming soon
+      </span>
+    </div>
+  );
+}
+
+// ── Initial SQL query ──────────────────────────────────────────────────────
+
+const INITIAL_QUERY = `CREATE TABLE students (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    age INT,
+    course VARCHAR(100)
+);`;
+
+// ── Dark-mode hook ─────────────────────────────────────────────────────────
+
+function useDarkMode(): [boolean, () => void] {
+  const [dark, setDark] = useState(false);
+
+  // Read persisted preference on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("qn-dark-mode");
+      if (stored !== null) {
+        setDark(stored === "true");
+      } else {
+        // Fall back to system preference
+        setDark(window.matchMedia("(prefers-color-scheme: dark)").matches);
+      }
+    } catch {
+      // localStorage unavailable (SSR guard)
+    }
+  }, []);
+
+  // Apply/remove the "dark" class on <html> whenever state changes
+  useEffect(() => {
+    const root = document.documentElement;
+    if (dark) {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    try {
+      localStorage.setItem("qn-dark-mode", String(dark));
+    } catch {
+      // ignore
+    }
+  }, [dark]);
+
+  const toggle = useCallback(() => setDark((d) => !d), []);
+  return [dark, toggle];
+}
+
+// ── Editor page ────────────────────────────────────────────────────────────
+
+function EditorPage() {
+  const [query, setQuery] = useState(INITIAL_QUERY);
+  const [execution, setExecution] = useState<QueryExecution>({
+    status: "idle",
+    result: null,
+    error: null,
+  });
+
+  const handleRun = useCallback(async () => {
+    if (execution.status === "running") return;
+
+    setExecution({ status: "running", result: null, error: null });
+    try {
+      const result = await executeQuery(query);
+      setExecution({ status: "success", result, error: null });
+    } catch (err) {
+      setExecution({
+        status: "error",
+        result: null,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, [query, execution.status]);
+
+  const handleClear = useCallback(() => {
+    setQuery("");
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-5 px-6 pb-8 md:px-8">
+      {/* SQL Editor card */}
+      <section aria-label="SQL Editor" className="rounded-xl shadow-sm overflow-hidden">
+        <EditorToolbar
+          isRunning={execution.status === "running"}
+          onRun={handleRun}
+          onClear={handleClear}
+        />
+        <SqlEditor value={query} onChange={setQuery} onRun={handleRun} />
+      </section>
+
+      {/* Query Result card */}
+      <QueryResult execution={execution} />
+    </div>
+  );
+}
+
+// ── Root page ──────────────────────────────────────────────────────────────
 
 export default function Home() {
+  const [activePage, setActivePage] = useState<NavPage>("editor");
+  const [darkMode, toggleDark] = useDarkMode();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-[#13151f]">
+      {/* Sidebar */}
+      <Sidebar activePage={activePage} onNavigate={setActivePage} />
+
+      {/* Main content */}
+      <div className="flex flex-1 flex-col overflow-y-auto min-w-0">
+        {/* Spacer on mobile so hamburger button doesn't overlap header text */}
+        <div className="h-14 lg:hidden" aria-hidden="true" />
+
+        <Header darkMode={darkMode} onToggleDark={toggleDark} />
+
+        <main id="main-content" tabIndex={-1}>
+          {activePage === "editor" && <EditorPage />}
+          {activePage === "database" && (
+            <PlaceholderPage
+              title="Database Explorer"
+              description="Browse your PostgreSQL schema, tables, and columns here."
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+          )}
+          {activePage === "history" && (
+            <PlaceholderPage
+              title="Query History"
+              description="Your previously executed queries will appear here."
+            />
+          )}
+          {activePage === "examples" && (
+            <PlaceholderPage
+              title="Example Queries"
+              description="Pre-built SQL examples to help you get started."
+            />
+          )}
+        </main>
+      </div>
     </div>
   );
 }
