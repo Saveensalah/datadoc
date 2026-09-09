@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QueryNest — SQL Playground",
+  title: "DATA DOCK — SQL Playground",
   description: "A browser-based SQL playground to write and execute SQL queries against an isolated PostgreSQL sandbox.",
 };
 
