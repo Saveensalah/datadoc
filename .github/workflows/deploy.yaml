@@ -13,10 +13,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Setup Node.js
-        uses: action/setup-node@v4
+        uses: actions/setup-node@v4
         with:
-          node-version:'20'
-          cache: 'npm'
+          node-version:"20"
+          cache:"npm"
       - name: Install dependencies
       run: npm ci
 
@@ -30,6 +30,6 @@ jobs:
           username: ${{ secrets.VM_USERNAME }}
           key: ${{ secrets.VM_SSH_KEY }}
           # Deploying the generated static/export build output to Nginx
-          source: "."
+          source: "out/"
           target: "/var/www/html"
           strip_components: 1
