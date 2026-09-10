@@ -149,7 +149,7 @@ function SidebarContent({
             <IconDatabase />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white leading-tight">SQL Playground</p>
+            <p className="text-sm font-semibold text-white leading-tight">A SQL Playground</p>
             <p className="text-[11px] text-gray-400 leading-tight">Write. Run. Learn.</p>
           </div>
         </div>
