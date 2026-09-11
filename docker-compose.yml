@@ -1,4 +1,5 @@
 services:
+
   postgres:
     image: postgres:16
     container_name: datadock-postgres
@@ -13,6 +14,27 @@ services:
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: datadock-backend
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: datadock
+      DB_USER: datadock
+      DB_PASSWORD: datadock_password
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      - postgres
+
 
 volumes:
   postgres_data:
