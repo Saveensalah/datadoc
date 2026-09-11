@@ -46,6 +46,28 @@ export async function executeQuery(query: string): Promise<QueryResult> {
 }
 
 /**
+ * Replace the current anonymous database session with a new isolated one.
+ */
+export async function createNewSession(): Promise<{ expiresAt: string }> {
+  const response = await fetch("/api/session", {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.json();
+}
+
+export async function getCurrentSession(): Promise<{ expiresAt: string }> {
+  const response = await fetch("/api/session");
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.json();
+}
+
+/**
  * Export a query result to a CSV string.
  * This is a pure frontend utility — no API call needed.
  */

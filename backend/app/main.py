@@ -16,19 +16,47 @@ Next.js  →  POST /query  →  run_query()
 """
 
 import time
+import asyncio
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from app.database import get_connection
+from app.database import (
+    cleanup_expired_sessions,
+    ensure_session_table,
+    find_session,
+    get_session_connection,
+    provision_session,
+)
+from app.sessions import create_new_session, get_or_create_session
 
 
 # ---------------------------------------------------------------------------
 # App setup
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Data Dock API", version="1.0.0")
+async def _cleanup_loop() -> None:
+    while True:
+        await asyncio.sleep(60)
+        await asyncio.to_thread(cleanup_expired_sessions)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await asyncio.to_thread(ensure_session_table)
+    await asyncio.to_thread(cleanup_expired_sessions)
+    task = asyncio.create_task(_cleanup_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+app = FastAPI(title="Data Dock API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,8 +85,28 @@ def health_check():
     return {"health": "ok"}
 
 
+@app.post("/session")
+def new_session(response: Response):
+    """Create a new isolated session and replace the session cookie."""
+    session = create_new_session(response)
+    provision_session(session)
+    return {"status": "ok", "expiresAt": session.expires_at.isoformat()}
+
+
+@app.get("/session")
+def current_session(request: Request, response: Response):
+    """Return the fixed expiration for the current browser session."""
+    candidate = get_or_create_session(request, response)
+    session = find_session(candidate.session_id)
+    if session is None or session.expires_at <= datetime.now(timezone.utc):
+        cleanup_expired_sessions()
+        session = create_new_session(response)
+        provision_session(session)
+    return {"expiresAt": session.expires_at.isoformat()}
+
+
 @app.post("/query")
-def run_query(request: QueryRequest):
+def run_query(request: QueryRequest, http_request: Request, response: Response):
     """
     Execute a SQL statement and return the result.
 
@@ -97,7 +145,13 @@ def run_query(request: QueryRequest):
     # Database connection
     # -----------------------------------------------------------------------
 
-    conn = get_connection()
+    candidate = get_or_create_session(http_request, response)
+    session = find_session(candidate.session_id)
+    if session is None or session.expires_at <= datetime.now(timezone.utc):
+        cleanup_expired_sessions()
+        session = create_new_session(response)
+        provision_session(session)
+    conn = get_session_connection(session)
     cur = conn.cursor()
 
     try:

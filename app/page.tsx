@@ -8,7 +8,7 @@ import SqlEditor from "@/components/sql/SqlEditor";
 import QueryResult from "@/components/sql/QueryResult";
 import type { NavPage } from "@/types/query";
 import type { QueryExecution } from "@/types/query";
-import { executeQuery } from "@/services/queryService";
+import { createNewSession, executeQuery, getCurrentSession } from "@/services/queryService";
 
 // ── Placeholder pages ──────────────────────────────────────────────────────
 
@@ -126,11 +126,31 @@ function EditorPage() {
 export default function Home() {
   const [activePage, setActivePage] = useState<NavPage>("editor");
   const [darkMode, toggleDark] = useDarkMode();
+  const [sessionKey, setSessionKey] = useState(0);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    getCurrentSession().then(({ expiresAt: sessionExpiresAt }) => {
+      setExpiresAt(sessionExpiresAt);
+    });
+  }, []);
+
+  const handleNewSession = useCallback(async () => {
+    const session = await createNewSession();
+    setActivePage("editor");
+    setSessionKey((key) => key + 1);
+    setExpiresAt(session.expiresAt);
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-[#13151f]">
       {/* Sidebar */}
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
+      <Sidebar
+        activePage={activePage}
+        onNavigate={setActivePage}
+        onNewSession={handleNewSession}
+        expiresAt={expiresAt}
+      />
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-y-auto min-w-0">
@@ -140,7 +160,7 @@ export default function Home() {
         <Header darkMode={darkMode} onToggleDark={toggleDark} />
 
         <main id="main-content" tabIndex={-1}>
-          {activePage === "editor" && <EditorPage />}
+          {activePage === "editor" && <EditorPage key={sessionKey} />}
           {activePage === "database" && (
             <PlaceholderPage
               title="Database Explorer"

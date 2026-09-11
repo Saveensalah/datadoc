@@ -100,21 +100,27 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Session countdown — starts at 29:48 and counts down
+// Session countdown — derives remaining time from the server expiration.
 // ---------------------------------------------------------------------------
 
-const INITIAL_SECONDS = 29 * 60 + 48;
-
-function useCountdown(initialSeconds: number) {
-  const [seconds, setSeconds] = useState(initialSeconds);
+function useCountdown(expiresAt: string | null) {
+  const [seconds, setSeconds] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!expiresAt) {
+      return;
+    }
+    const update = () => {
+      setSeconds(Math.max(0, Math.ceil((Date.parse(expiresAt) - Date.now()) / 1000)));
+    };
+    update();
     const id = setInterval(() => {
-      setSeconds((s) => (s > 0 ? s - 1 : 0));
+      update();
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [expiresAt]);
 
+  if (seconds === null) return "--:--";
   const m = String(Math.floor(seconds / 60)).padStart(2, "0");
   const s = String(seconds % 60).padStart(2, "0");
   return `${m}:${s}`;
@@ -127,6 +133,8 @@ function useCountdown(initialSeconds: number) {
 interface SidebarProps {
   activePage: NavPage;
   onNavigate: (page: NavPage) => void;
+  onNewSession: () => Promise<void>;
+  expiresAt: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -137,8 +145,22 @@ function SidebarContent({
   activePage,
   onNavigate,
   onClose,
+  onNewSession,
+  expiresAt,
 }: SidebarProps & { onClose?: () => void }) {
-  const timer = useCountdown(INITIAL_SECONDS);
+  const timer = useCountdown(expiresAt);
+  const [creatingSession, setCreatingSession] = useState(false);
+
+  async function handleNewSession() {
+    setCreatingSession(true);
+    try {
+      await onNewSession();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to create a new session.");
+    } finally {
+      setCreatingSession(false);
+    }
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -206,7 +228,14 @@ function SidebarContent({
       {/* ── Session ───────────────────────────────────────────────────── */}
       <div className="mx-3 mb-4 mt-2">
         <div className="border-t border-white/10 mb-4" />
-        <button className="w-full flex items-center gap-3 rounded-xl p-3 hover:bg-white/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff174f] group">
+        <button
+          type="button"
+          onClick={handleNewSession}
+          disabled={creatingSession}
+          aria-label="Create a new isolated session"
+          title="Create a new isolated session"
+          className="w-full flex items-center gap-3 rounded-xl p-3 hover:bg-white/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff174f] group disabled:opacity-60"
+        >
           {/* Avatar */}
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ff174f] to-[#a30031] text-sm font-bold text-white">
             S
@@ -214,7 +243,9 @@ function SidebarContent({
 
           {/* Info */}
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-xs font-semibold text-gray-200 truncate">Guest Session</p>
+            <p className="text-xs font-semibold text-gray-200 truncate">
+              {creatingSession ? "Creating Session..." : "Guest Session"}
+            </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               {/* Green status dot */}
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" aria-hidden="true" />
@@ -241,7 +272,7 @@ function SidebarContent({
 // Main Sidebar export — handles desktop + mobile drawer
 // ---------------------------------------------------------------------------
 
-export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
+export default function Sidebar({ activePage, onNavigate, onNewSession, expiresAt }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -277,6 +308,8 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
         <SidebarContent
           activePage={activePage}
           onNavigate={onNavigate}
+          onNewSession={onNewSession}
+          expiresAt={expiresAt}
           onClose={() => setMobileOpen(false)}
         />
       </aside>
@@ -286,7 +319,12 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
         className="hidden lg:flex flex-col w-[280px] shrink-0 h-screen sticky top-0 bg-[#0f1117] border-r border-white/10"
         aria-label="Main navigation"
       >
-        <SidebarContent activePage={activePage} onNavigate={onNavigate} />
+        <SidebarContent
+          activePage={activePage}
+          onNavigate={onNavigate}
+          onNewSession={onNewSession}
+          expiresAt={expiresAt}
+        />
       </aside>
     </>
   );
