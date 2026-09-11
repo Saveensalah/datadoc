@@ -18,7 +18,7 @@ export async function executeQuery(query: string): Promise<QueryResult> {
     throw new Error("Query cannot be empty.");
   }
 
-  const response = await fetch("http://127.0.0.1:8000/query", {
+  const response = await fetch("/api/query", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
