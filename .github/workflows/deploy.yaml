@@ -1,4 +1,4 @@
-name: Deploy Frontend to Azure VM
+name: Deploy Data Dock to Azure VM
 
 on:
   push:
@@ -12,24 +12,52 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # -------------------------
+      # FRONTEND
+      # -------------------------
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build Next.js project
         run: npm run build
 
-      - name: Deploy files to Azure VM over SSH
+      - name: Deploy frontend to Azure VM
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USERNAME }}
           key: ${{ secrets.VM_SSH_KEY }}
-          # Deploying the generated static/export build output to Nginx
           source: "out/"
           target: "/var/www/html"
           strip_components: 1
+
+      # -------------------------
+      # BACKEND
+      # -------------------------
+
+      - name: Deploy backend files to Azure VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          source: "backend/,docker-compose.yml"
+          target: "/opt/datadock"
+
+      - name: Build and start backend containers
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd /opt/datadock
+            docker compose up -d --build
