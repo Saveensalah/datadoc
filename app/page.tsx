@@ -32,12 +32,7 @@ function PlaceholderPage({ title, description }: { title: string; description: s
 
 // ── Initial SQL query ──────────────────────────────────────────────────────
 
-const INITIAL_QUERY = `CREATE TABLE students (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
-    age INT,
-    course VARCHAR(100)
-);`;
+const INITIAL_QUERY = "";
 
 // ── Dark-mode hook ─────────────────────────────────────────────────────────
 
