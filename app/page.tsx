@@ -88,11 +88,11 @@ function EditorPage({
         error: err instanceof Error ? err.message : String(err),
       });
     }
-  }, [query, execution.status, onQueryExecuted, setQuery]);
+  }, [query, execution.status, onQueryExecuted]);
 
   const handleClear = useCallback(() => {
     setQuery("");
-  }, []);
+  }, [setQuery]);
 
   return (
     <div className="flex flex-col gap-5 px-6 pb-8 md:px-8">
@@ -121,6 +121,7 @@ export default function Home() {
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [query, setQuery] = useState(INITIAL_QUERY);
   const [databaseRefreshKey, setDatabaseRefreshKey] = useState(0);
+  const [splitView, setSplitView] = useState(false);
 
   useEffect(() => {
     getCurrentSession().then(({ expiresAt: sessionExpiresAt }) => {
@@ -143,6 +144,11 @@ export default function Home() {
       <Sidebar
         activePage={activePage}
         onNavigate={setActivePage}
+        splitView={splitView}
+        onToggleSplitView={() => {
+          setSplitView((enabled) => !enabled);
+          setActivePage("editor");
+        }}
         onNewSession={handleNewSession}
         expiresAt={expiresAt}
       />
@@ -155,16 +161,32 @@ export default function Home() {
         <Header darkMode={darkMode} onToggleDark={toggleDark} />
 
         <main id="main-content" tabIndex={-1}>
-          {activePage === "editor" && (
-            <EditorPage
-              key={sessionKey}
-              query={query}
-              setQuery={setQuery}
-              onQueryExecuted={() => setDatabaseRefreshKey((key) => key + 1)}
-            />
-          )}
-          {activePage === "database" && (
-            <DatabaseExplorer refreshKey={databaseRefreshKey} />
+          {splitView ? (
+            <div className="grid gap-5 px-6 pb-8 md:px-8 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:gap-0">
+              <EditorPage
+                key={sessionKey}
+                query={query}
+                setQuery={setQuery}
+                onQueryExecuted={() => setDatabaseRefreshKey((key) => key + 1)}
+              />
+              <div className="border-gray-200 dark:border-gray-800 lg:border-l lg:pl-5">
+                <DatabaseExplorer refreshKey={databaseRefreshKey} compact />
+              </div>
+            </div>
+          ) : (
+            <>
+              {activePage === "editor" && (
+                <EditorPage
+                  key={sessionKey}
+                  query={query}
+                  setQuery={setQuery}
+                  onQueryExecuted={() => setDatabaseRefreshKey((key) => key + 1)}
+                />
+              )}
+              {activePage === "database" && (
+                <DatabaseExplorer refreshKey={databaseRefreshKey} />
+              )}
+            </>
           )}
           {activePage === "history" && (
             <QueryHistory

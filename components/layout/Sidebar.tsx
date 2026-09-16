@@ -82,6 +82,15 @@ function IconX() {
   );
 }
 
+function IconSplitView() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M12 4v16" />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Nav item definition
 // ---------------------------------------------------------------------------
@@ -133,6 +142,8 @@ function useCountdown(expiresAt: string | null) {
 interface SidebarProps {
   activePage: NavPage;
   onNavigate: (page: NavPage) => void;
+  splitView: boolean;
+  onToggleSplitView: () => void;
   onNewSession: () => Promise<void>;
   expiresAt: string | null;
 }
@@ -144,6 +155,8 @@ interface SidebarProps {
 function SidebarContent({
   activePage,
   onNavigate,
+  splitView,
+  onToggleSplitView,
   onClose,
   onNewSession,
   expiresAt,
@@ -191,7 +204,7 @@ function SidebarContent({
       <nav className="flex-1 px-3 space-y-0.5" aria-label="Main navigation">
         {NAV_ITEMS.map((item) => {
           const isActive = item.id === activePage;
-          return (
+          const navButton = (
             <button
               key={item.id}
               onClick={() => {
@@ -221,6 +234,33 @@ function SidebarContent({
               </span>
               {item.label}
             </button>
+          );
+
+          if (item.id !== "database") {
+            return navButton;
+          }
+
+          return (
+            <div key={item.id} className="flex items-center gap-1">
+              <div className="min-w-0 flex-1">{navButton}</div>
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleSplitView();
+                  onClose?.();
+                }}
+                aria-label={splitView ? "Disable split view" : "Show database and SQL editor together"}
+                aria-pressed={splitView}
+                title={splitView ? "Disable split view" : "Toggle split view"}
+                className={`
+                  flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff174f]
+                  ${splitView ? "bg-[#3a0a18] text-[#ff174f]" : "text-gray-500 hover:bg-white/5 hover:text-gray-300"}
+                `}
+              >
+                <IconSplitView />
+              </button>
+            </div>
           );
         })}
       </nav>
@@ -272,7 +312,7 @@ function SidebarContent({
 // Main Sidebar export — handles desktop + mobile drawer
 // ---------------------------------------------------------------------------
 
-export default function Sidebar({ activePage, onNavigate, onNewSession, expiresAt }: SidebarProps) {
+export default function Sidebar({ activePage, onNavigate, splitView, onToggleSplitView, onNewSession, expiresAt }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -308,6 +348,8 @@ export default function Sidebar({ activePage, onNavigate, onNewSession, expiresA
         <SidebarContent
           activePage={activePage}
           onNavigate={onNavigate}
+          splitView={splitView}
+          onToggleSplitView={onToggleSplitView}
           onNewSession={onNewSession}
           expiresAt={expiresAt}
           onClose={() => setMobileOpen(false)}
@@ -322,6 +364,8 @@ export default function Sidebar({ activePage, onNavigate, onNewSession, expiresA
         <SidebarContent
           activePage={activePage}
           onNavigate={onNavigate}
+          splitView={splitView}
+          onToggleSplitView={onToggleSplitView}
           onNewSession={onNewSession}
           expiresAt={expiresAt}
         />

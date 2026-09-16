@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { getDatabaseTables } from "@/services/queryService";
 import type { DatabaseTable } from "@/types/query";
 
-export default function DatabaseExplorer({ refreshKey }: { refreshKey: number }) {
+export default function DatabaseExplorer({
+  refreshKey,
+  compact = false,
+}: {
+  refreshKey: number;
+  compact?: boolean;
+}) {
   const [tables, setTables] = useState<DatabaseTable[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -32,7 +38,7 @@ export default function DatabaseExplorer({ refreshKey }: { refreshKey: number })
   }, [load, refreshKey]);
 
   return (
-    <section className="mx-6 mb-8 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm md:mx-8">
+    <section className={`${compact ? "mx-0 mb-0" : "mx-6 mb-8 md:mx-8"} rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm`}>
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800">
         <div>
           <h2 className="font-semibold text-gray-800 dark:text-gray-100">Database</h2>
