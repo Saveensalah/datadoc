@@ -188,6 +188,11 @@ def cleanup_expired_sessions(now: datetime | None = None) -> int:
             expired = cur.fetchall()
             for session_id, role_name, schema_name in expired:
                 cur.execute(
+                    sql.SQL("DROP OWNED BY {}").format(
+                        sql.Identifier(role_name)
+                    )
+                )
+                cur.execute(
                     sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
                         sql.Identifier(schema_name)
                     )
@@ -197,6 +202,7 @@ def cleanup_expired_sessions(now: datetime | None = None) -> int:
                         sql.Identifier(role_name)
                     )
                 )
+                
                 cur.execute(
                     "DELETE FROM public.datadock_sessions WHERE session_id = %s",
                     (session_id,),
