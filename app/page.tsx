@@ -6,29 +6,12 @@ import Header from "@/components/layout/Header";
 import EditorToolbar from "@/components/sql/EditorToolbar";
 import SqlEditor from "@/components/sql/SqlEditor";
 import QueryResult from "@/components/sql/QueryResult";
+import DatabaseExplorer from "@/components/database/DatabaseExplorer";
+import QueryHistory from "@/components/history/QueryHistory";
+import ExampleQueries from "@/components/examples/ExampleQueries";
 import type { NavPage } from "@/types/query";
 import type { QueryExecution } from "@/types/query";
 import { createNewSession, executeQuery, getCurrentSession } from "@/services/queryService";
-
-// ── Placeholder pages ──────────────────────────────────────────────────────
-
-function PlaceholderPage({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center py-24 text-center px-6">
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" rx="3" />
-          <path d="M3 9h18M9 3v18" />
-        </svg>
-      </div>
-      <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{title}</h2>
-      <p className="mt-1.5 max-w-xs text-sm text-gray-500 dark:text-gray-400">{description}</p>
-      <span className="mt-4 inline-flex items-center rounded-full border border-dashed border-gray-200 dark:border-gray-700 px-3 py-1 text-xs text-gray-400 dark:text-gray-500">
-        Coming soon
-      </span>
-    </div>
-  );
-}
 
 // ── Initial SQL query ──────────────────────────────────────────────────────
 
@@ -75,8 +58,15 @@ function useDarkMode(): [boolean, () => void] {
 
 // ── Editor page ────────────────────────────────────────────────────────────
 
-function EditorPage() {
-  const [query, setQuery] = useState(INITIAL_QUERY);
+function EditorPage({
+  query,
+  setQuery,
+  onQueryExecuted,
+}: {
+  query: string;
+  setQuery: (query: string) => void;
+  onQueryExecuted: () => void;
+}) {
   const [execution, setExecution] = useState<QueryExecution>({
     status: "idle",
     result: null,
@@ -90,6 +80,7 @@ function EditorPage() {
     try {
       const result = await executeQuery(query);
       setExecution({ status: "success", result, error: null });
+      onQueryExecuted();
     } catch (err) {
       setExecution({
         status: "error",
@@ -97,7 +88,7 @@ function EditorPage() {
         error: err instanceof Error ? err.message : String(err),
       });
     }
-  }, [query, execution.status]);
+  }, [query, execution.status, onQueryExecuted, setQuery]);
 
   const handleClear = useCallback(() => {
     setQuery("");
@@ -128,6 +119,8 @@ export default function Home() {
   const [darkMode, toggleDark] = useDarkMode();
   const [sessionKey, setSessionKey] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [query, setQuery] = useState(INITIAL_QUERY);
+  const [databaseRefreshKey, setDatabaseRefreshKey] = useState(0);
 
   useEffect(() => {
     getCurrentSession().then(({ expiresAt: sessionExpiresAt }) => {
@@ -138,8 +131,10 @@ export default function Home() {
   const handleNewSession = useCallback(async () => {
     const session = await createNewSession();
     setActivePage("editor");
+    setQuery("");
     setSessionKey((key) => key + 1);
     setExpiresAt(session.expiresAt);
+    setDatabaseRefreshKey((key) => key + 1);
   }, []);
 
   return (
@@ -160,23 +155,31 @@ export default function Home() {
         <Header darkMode={darkMode} onToggleDark={toggleDark} />
 
         <main id="main-content" tabIndex={-1}>
-          {activePage === "editor" && <EditorPage key={sessionKey} />}
-          {activePage === "database" && (
-            <PlaceholderPage
-              title="Database Explorer"
-              description="Browse your PostgreSQL schema, tables, and columns here."
+          {activePage === "editor" && (
+            <EditorPage
+              key={sessionKey}
+              query={query}
+              setQuery={setQuery}
+              onQueryExecuted={() => setDatabaseRefreshKey((key) => key + 1)}
             />
           )}
+          {activePage === "database" && (
+            <DatabaseExplorer refreshKey={databaseRefreshKey} />
+          )}
           {activePage === "history" && (
-            <PlaceholderPage
-              title="Query History"
-              description="Your previously executed queries will appear here."
+            <QueryHistory
+              onSelect={(sql) => {
+                setQuery(sql);
+                setActivePage("editor");
+              }}
             />
           )}
           {activePage === "examples" && (
-            <PlaceholderPage
-              title="Example Queries"
-              description="Pre-built SQL examples to help you get started."
+            <ExampleQueries
+              onUse={(sql) => {
+                setQuery(sql);
+                setActivePage("editor");
+              }}
             />
           )}
         </main>

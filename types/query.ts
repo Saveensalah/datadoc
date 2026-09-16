@@ -26,5 +26,24 @@ export interface QueryExecution {
   error: string | null;
 }
 
+export interface DatabaseColumn {
+  name: string;
+  type: string;
+}
+
+export interface DatabaseTable {
+  name: string;
+  columns: DatabaseColumn[];
+}
+
+export interface QueryHistoryItem {
+  id: string;
+  sql: string;
+  status: "success" | "error";
+  executionTime: number;
+  timestamp: string;
+  error: string | null;
+}
+
 /** Navigation items shown in the sidebar */
 export type NavPage = "editor" | "database" | "history" | "examples";

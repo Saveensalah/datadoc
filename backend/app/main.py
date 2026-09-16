@@ -17,6 +17,7 @@ Next.js  →  POST /query  →  run_query()
 
 import time
 import asyncio
+import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -29,9 +30,13 @@ from app.database import (
     ensure_session_table,
     find_session,
     get_session_connection,
+    get_session_tables,
     provision_session,
 )
 from app.sessions import create_new_session, get_or_create_session
+
+_query_history: dict[str, list[dict[str, object]]] = {}
+_history_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -42,6 +47,7 @@ async def _cleanup_loop() -> None:
     while True:
         await asyncio.sleep(60)
         await asyncio.to_thread(cleanup_expired_sessions)
+        await asyncio.to_thread(_remove_expired_history)
 
 
 @asynccontextmanager
@@ -75,6 +81,51 @@ class QueryRequest(BaseModel):
     sql: str
 
 
+def _get_active_session(
+    http_request: Request, response: Response
+):
+    candidate = get_or_create_session(http_request, response)
+    session = find_session(candidate.session_id)
+    if session is None or session.expires_at <= datetime.now(timezone.utc):
+        cleanup_expired_sessions()
+        _remove_expired_history()
+        session = create_new_session(response)
+        provision_session(session)
+    return session
+
+
+def _record_history(
+    session_id: str,
+    query: str,
+    status: str,
+    execution_time: int,
+    error: str | None = None,
+) -> None:
+    item = {
+        "id": f"{session_id}-{time.time_ns()}",
+        "sql": query,
+        "status": status,
+        "executionTime": execution_time,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "error": error,
+    }
+    with _history_lock:
+        _query_history.setdefault(session_id, []).insert(0, item)
+        _query_history[session_id] = _query_history[session_id][:100]
+
+
+def _remove_expired_history() -> None:
+    with _history_lock:
+        active_ids = set()
+        with_history = list(_query_history)
+        for session_id in with_history:
+            if find_session(session_id) is not None:
+                active_ids.add(session_id)
+        for session_id in with_history:
+            if session_id not in active_ids:
+                _query_history.pop(session_id, None)
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -100,9 +151,26 @@ def current_session(request: Request, response: Response):
     session = find_session(candidate.session_id)
     if session is None or session.expires_at <= datetime.now(timezone.utc):
         cleanup_expired_sessions()
+        _remove_expired_history()
         session = create_new_session(response)
         provision_session(session)
     return {"expiresAt": session.expires_at.isoformat()}
+
+
+@app.get("/database")
+def database_schema(request: Request, response: Response):
+    """Return only tables owned by the current anonymous session."""
+    session = _get_active_session(request, response)
+    return {"tables": get_session_tables(session)}
+
+
+@app.get("/history")
+def query_history(request: Request, response: Response):
+    """Return query history for the current anonymous session only."""
+    session = _get_active_session(request, response)
+    with _history_lock:
+        history = list(_query_history.get(session.session_id, []))
+    return {"history": history}
 
 
 @app.post("/query")
@@ -145,12 +213,7 @@ def run_query(request: QueryRequest, http_request: Request, response: Response):
     # Database connection
     # -----------------------------------------------------------------------
 
-    candidate = get_or_create_session(http_request, response)
-    session = find_session(candidate.session_id)
-    if session is None or session.expires_at <= datetime.now(timezone.utc):
-        cleanup_expired_sessions()
-        session = create_new_session(response)
-        provision_session(session)
+    session = _get_active_session(http_request, response)
     conn = get_session_connection(session)
     cur = conn.cursor()
 
@@ -176,6 +239,12 @@ def run_query(request: QueryRequest, http_request: Request, response: Response):
             columns = [col.name for col in cur.description]
             rows = [list(row) for row in cur.fetchall()]
 
+            _record_history(
+                session.session_id,
+                request.sql,
+                "success",
+                elapsed_ms,
+            )
             return {
                 "columns": columns,
                 "rows": rows,
@@ -189,6 +258,12 @@ def run_query(request: QueryRequest, http_request: Request, response: Response):
 
         conn.commit()
 
+        _record_history(
+            session.session_id,
+            request.sql,
+            "success",
+            elapsed_ms,
+        )
         return {
             "message": "Query executed successfully",
             "executionTime": elapsed_ms,
@@ -204,6 +279,13 @@ def run_query(request: QueryRequest, http_request: Request, response: Response):
         # Extract only the first line of the PostgreSQL error.
         raw = str(exc).strip()
         clean = raw.split("\n")[0].strip()
+        _record_history(
+            session.session_id,
+            request.sql,
+            "error",
+            (time.perf_counter_ns() - start_ns) // 1_000_000,
+            clean or "An unexpected database error occurred.",
+        )
 
         return {
             "error": clean or "An unexpected database error occurred."

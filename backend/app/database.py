@@ -146,6 +146,40 @@ def get_session_connection(session: Session) -> psycopg.Connection:
     return conn
 
 
+def get_session_tables(session: Session) -> list[dict[str, object]]:
+    """Return user tables and their columns from the current session schema."""
+    conn = get_session_connection(session)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    table_name,
+                    column_name,
+                    format_type(a.atttypid, a.atttypmod) AS data_type
+                FROM pg_catalog.pg_class c
+                JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+                WHERE n.nspname = current_schema()
+                  AND c.relkind IN ('r', 'p')
+                  AND a.attnum > 0
+                  AND NOT a.attisdropped
+                ORDER BY c.relname, a.attnum
+                """,
+            )
+            tables: dict[str, list[dict[str, str]]] = {}
+            for table_name, column_name, data_type in cur.fetchall():
+                tables.setdefault(table_name, []).append(
+                    {"name": column_name, "type": data_type}
+                )
+            return [
+                {"name": name, "columns": columns}
+                for name, columns in tables.items()
+            ]
+    finally:
+        conn.close()
+
+
 def find_session(session_id: str) -> Session | None:
     with get_admin_connection() as conn:
         with conn.cursor() as cur:

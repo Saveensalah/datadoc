@@ -4,7 +4,11 @@
 // Connects the frontend SQL editor to the FastAPI backend.
 // ---------------------------------------------------------------------------
 
-import type { QueryResult } from "@/types/query";
+import type {
+  DatabaseTable,
+  QueryHistoryItem,
+  QueryResult,
+} from "@/types/query";
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -41,8 +45,26 @@ export async function executeQuery(query: string): Promise<QueryResult> {
   return {
     columns: data.columns ?? [],
     rows: data.rows ?? [],
-    executionTime: 0,
+    executionTime: data.executionTime ?? 0,
   };
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.json();
+}
+
+export async function getDatabaseTables(): Promise<DatabaseTable[]> {
+  const data = await getJson<{ tables: DatabaseTable[] }>("/api/database");
+  return data.tables;
+}
+
+export async function getQueryHistory(): Promise<QueryHistoryItem[]> {
+  const data = await getJson<{ history: QueryHistoryItem[] }>("/api/history");
+  return data.history;
 }
 
 /**
