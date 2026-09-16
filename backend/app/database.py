@@ -152,21 +152,21 @@ def get_session_tables(session: Session) -> list[dict[str, object]]:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                """
-                SELECT
-                    table_name,
-                    column_name,
-                    format_type(a.atttypid, a.atttypmod) AS data_type
-                FROM pg_catalog.pg_class c
-                JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-                JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
-                WHERE n.nspname = current_schema()
-                  AND c.relkind IN ('r', 'p')
-                  AND a.attnum > 0
-                  AND NOT a.attisdropped
-                ORDER BY c.relname, a.attnum
-                """,
-            )
+                        """
+                        SELECT
+                            c.relname AS table_name,
+                            a.attname AS column_name,
+                            format_type(a.atttypid, a.atttypmod) AS data_type
+                        FROM pg_catalog.pg_class c
+                        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                        JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+                        WHERE n.nspname = current_schema()
+                        AND c.relkind IN ('r', 'p')
+                        AND a.attnum > 0
+                        AND NOT a.attisdropped
+                        ORDER BY c.relname, a.attnum
+                        """,
+                        )
             tables: dict[str, list[dict[str, str]]] = {}
             for table_name, column_name, data_type in cur.fetchall():
                 tables.setdefault(table_name, []).append(
