@@ -7,17 +7,6 @@ import type { NavPage } from "@/types/query";
 // Icons — inline SVGs, zero extra deps
 // ---------------------------------------------------------------------------
 
-function IconDatabase() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M3 5v4c0 1.657 4.03 3 9 3s9-1.343 9-3V5" />
-      <path d="M3 9v4c0 1.657 4.03 3 9 3s9-1.343 9-3V9" />
-      <path d="M3 13v4c0 1.657 4.03 3 9 3s9-1.343 9-3v-4" />
-    </svg>
-  );
-}
-
 function IconCode() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -180,8 +169,8 @@ function SidebarContent({
       {/* ── Brand ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-5 pt-6 pb-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff174f]/10 text-[#ff174f]">
-            <IconDatabase />
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[#ff174f]/10">
+            <img src="/favicon.svg" alt="" className="h-full w-full object-cover" />
           </div>
           <div>
             <p className="text-sm font-semibold text-white leading-tight">A SQL Playground</p>

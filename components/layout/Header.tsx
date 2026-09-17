@@ -33,9 +33,12 @@ export default function Header({ darkMode, onToggleDark }: HeaderProps) {
   return (
     <header className="flex items-start justify-between px-6 pt-7 pb-5 md:px-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight leading-tight">
-          DATA DOCK
-        </h1>
+        <div className="flex items-center gap-2.5">
+          <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-lg" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight leading-tight">
+            DATA DOCK
+          </h1>
+        </div>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           A simple sandbox to practice SQL with PostgreSQL.
         </p>
