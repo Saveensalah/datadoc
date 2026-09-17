@@ -34,6 +34,8 @@ export interface DatabaseColumn {
 export interface DatabaseTable {
   name: string;
   columns: DatabaseColumn[];
+  rows: QueryRow[];
+  previewLimit: number;
 }
 
 export interface QueryHistoryItem {

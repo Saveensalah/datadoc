@@ -16,6 +16,7 @@ DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "datadock")
 DB_USER = os.getenv("DB_USER", "datadock")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DATABASE_PREVIEW_LIMIT = 50
 
 
 def get_admin_connection() -> psycopg.Connection:
@@ -147,7 +148,7 @@ def get_session_connection(session: Session) -> psycopg.Connection:
 
 
 def get_session_tables(session: Session) -> list[dict[str, object]]:
-    """Return user tables and their columns from the current session schema."""
+    """Return current-session tables, columns, and bounded row previews."""
     conn = get_session_connection(session)
     try:
         with conn.cursor() as cur:
@@ -172,10 +173,23 @@ def get_session_tables(session: Session) -> list[dict[str, object]]:
                 tables.setdefault(table_name, []).append(
                     {"name": column_name, "type": data_type}
                 )
-            return [
-                {"name": name, "columns": columns}
-                for name, columns in tables.items()
-            ]
+            previews: list[dict[str, object]] = []
+            for name, columns in tables.items():
+                cur.execute(
+                    sql.SQL("SELECT * FROM {} LIMIT %s").format(
+                        sql.Identifier(name)
+                    ),
+                    (DATABASE_PREVIEW_LIMIT,),
+                )
+                previews.append(
+                    {
+                        "name": name,
+                        "columns": columns,
+                        "rows": [list(row) for row in cur.fetchall()],
+                        "previewLimit": DATABASE_PREVIEW_LIMIT,
+                    }
+                )
+            return previews
     finally:
         conn.close()
 

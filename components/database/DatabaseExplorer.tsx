@@ -69,13 +69,35 @@ export default function DatabaseExplorer({
                     {table.name}
                   </button>
                   {isOpen && (
-                    <div className="border-t border-gray-100 px-8 py-2 dark:border-gray-800">
-                      {table.columns.map((column) => (
-                        <div key={column.name} className="flex justify-between py-1 font-mono text-xs">
-                          <span className="text-gray-700 dark:text-gray-300">{column.name}</span>
-                          <span className="text-gray-400">{column.type}</span>
-                        </div>
-                      ))}
+                    <div className="border-t border-gray-100 dark:border-gray-800">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-left font-mono text-xs">
+                          <thead className="bg-gray-50 dark:bg-gray-800/60">
+                            <tr>
+                              {table.columns.map((column) => (
+                                <th key={column.name} className="whitespace-nowrap px-3 py-2 font-semibold text-gray-700 dark:text-gray-200">
+                                  <div>{column.name}</div>
+                                  <div className="mt-0.5 font-normal text-gray-400">{column.type}</div>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {table.rows.map((row, rowIndex) => (
+                              <tr key={rowIndex} className="border-t border-gray-100 dark:border-gray-800">
+                                {row.map((cell, columnIndex) => (
+                                  <td key={columnIndex} className="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">
+                                    {cell === null ? <span className="italic text-gray-400">NULL</span> : String(cell)}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="px-3 py-2 text-[11px] text-gray-400">
+                        Showing up to {table.previewLimit} rows
+                      </p>
                     </div>
                   )}
                 </div>

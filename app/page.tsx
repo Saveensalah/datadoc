@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import EditorToolbar from "@/components/sql/EditorToolbar";
@@ -112,6 +112,68 @@ function EditorPage({
   );
 }
 
+function ResizableWorkspace({
+  children,
+}: {
+  children: [React.ReactNode, React.ReactNode];
+}) {
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const [editorWidth, setEditorWidth] = useState(58);
+  const draggingRef = useRef(false);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const workspace = workspaceRef.current;
+      if (!draggingRef.current || !workspace || workspace.clientWidth < 900) return;
+      const bounds = workspace.getBoundingClientRect();
+      const nextWidth = ((event.clientX - bounds.left) / bounds.width) * 100;
+      setEditorWidth(Math.min(70, Math.max(30, nextWidth)));
+    };
+    const stopDragging = () => {
+      draggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopDragging);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopDragging);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={workspaceRef}
+      className="relative grid grid-cols-1 gap-5 px-6 pb-8 lg:grid-cols-[minmax(0,var(--editor-width))_minmax(280px,1fr)] lg:gap-0"
+      style={{ "--editor-width": `${editorWidth}%` } as React.CSSProperties}
+    >
+      <div className="min-w-0">
+        {children[0]}
+      </div>
+      <div
+        role="separator"
+        aria-label="Resize editor and database panels"
+        aria-orientation="vertical"
+        onPointerDown={(event) => {
+          if (workspaceRef.current && workspaceRef.current.clientWidth >= 900) {
+            event.preventDefault();
+            draggingRef.current = true;
+            document.body.style.cursor = "col-resize";
+            document.body.style.userSelect = "none";
+          }
+        }}
+        className="absolute inset-y-0 left-[var(--editor-width)] hidden w-2 -translate-x-1/2 cursor-col-resize items-stretch justify-center lg:flex"
+      >
+        <span className="w-px bg-gray-300 dark:bg-gray-700" />
+      </div>
+      <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:pl-4">
+        {children[1]}
+      </div>
+    </div>
+  );
+}
+
 // ── Root page ──────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -121,7 +183,7 @@ export default function Home() {
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [query, setQuery] = useState(INITIAL_QUERY);
   const [databaseRefreshKey, setDatabaseRefreshKey] = useState(0);
-  const [splitView, setSplitView] = useState(false);
+  const [splitView, setSplitView] = useState(true);
 
   useEffect(() => {
     getCurrentSession().then(({ expiresAt: sessionExpiresAt }) => {
@@ -162,17 +224,17 @@ export default function Home() {
 
         <main id="main-content" tabIndex={-1}>
           {splitView ? (
-            <div className="grid gap-5 px-6 pb-8 md:px-8 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:gap-0">
+            <ResizableWorkspace>
               <EditorPage
                 key={sessionKey}
                 query={query}
                 setQuery={setQuery}
                 onQueryExecuted={() => setDatabaseRefreshKey((key) => key + 1)}
               />
-              <div className="border-gray-200 dark:border-gray-800 lg:border-l lg:pl-5">
+              <div>
                 <DatabaseExplorer refreshKey={databaseRefreshKey} compact />
               </div>
-            </div>
+            </ResizableWorkspace>
           ) : (
             <>
               {activePage === "editor" && (

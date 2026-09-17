@@ -238,24 +238,13 @@ def run_query(request: QueryRequest, http_request: Request, response: Response):
         if cur.description:
             columns = [col.name for col in cur.description]
             rows = [list(row) for row in cur.fetchall()]
+        else:
+            columns = []
+            rows = []
 
-            _record_history(
-                session.session_id,
-                request.sql,
-                "success",
-                elapsed_ms,
-            )
-            return {
-                "columns": columns,
-                "rows": rows,
-                "executionTime": elapsed_ms,
-            }
-
-        # -------------------------------------------------------------------
-        # DDL / DML
-        # CREATE, INSERT, UPDATE, DELETE, DROP, etc.
-        # -------------------------------------------------------------------
-
+        # psycopg sends the complete request.sql to PostgreSQL, which parses
+        # and executes every statement in the script. Commit after fetching
+        # the final result so preceding DDL/DML is committed as well.
         conn.commit()
 
         _record_history(
@@ -265,6 +254,8 @@ def run_query(request: QueryRequest, http_request: Request, response: Response):
             elapsed_ms,
         )
         return {
+            "columns": columns,
+            "rows": rows,
             "message": "Query executed successfully",
             "executionTime": elapsed_ms,
         }
